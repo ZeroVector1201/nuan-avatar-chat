@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-20",
+  "python_tests_passed": 6,
+  "javascript_tests_passed": 4,
+  "browser": {
+    "passed": true,
+    "checks": [
+      "direct entry without login",
+      "fMP4 decoding",
+      "text revealed at speech cue",
+      "interrupt and reset",
+      "microphone WAV to ASR",
+      "mobile layout",
+      "no business API calls"
+    ],
+    "fixture": "Recorded avatar video and synthetic model responses; not live inference."
+  },
+  "live_model_validation": {
+    "completed": false,
+    "reason": "Existing model services were unavailable during export. Configure and start them separately."
+  }
+}
