@@ -1,0 +1,3 @@
+# Preserve upstream runtime/model bytes and license formatting.
+web/vendor/live2d/** -text -whitespace
+web/assets/live2d/** -text

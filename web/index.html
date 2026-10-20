@@ -16,11 +16,13 @@
 <main>
   <section class="stage" aria-label="数字人">
     <div class="stage-heading"><span class="eyebrow">SOME TIME TOGETHER</span><h1>慢慢说，<br>我在听。</h1></div>
+    <div class="avatar-picker"><label for="avatar-mode">形象</label><select id="avatar-mode" aria-label="选择数字人形象"><option value="natural">自然真人</option><option value="live2d">Live2D · Haru</option></select></div>
     <div id="avatar"><img class="placeholder" src="/static/assets/portrait.jpg" alt="暖暖 AI 数字人"></div>
     <div id="avatar-loading">暖暖正在准备与你见面…</div>
     <div class="identity"><span class="presence"></span><div><strong>暖暖</strong><small>愿意倾听的 AI 伙伴</small></div></div>
     <div id="caption" hidden aria-live="polite"></div>
     <div id="state-label">慢慢来，聊你想聊的。</div>
+    <a id="live2d-credit" href="/static/live2d-notice.html" target="_blank" rel="noopener" hidden>Haru © Live2D Inc. · 素材说明</a>
   </section>
   <section class="conversation" aria-label="聊天">
     <div class="conversation-heading"><span class="eyebrow">LET'S TALK</span><h2>今天，想聊些什么？</h2><p>一件小事，一个念头，都可以。</p></div>

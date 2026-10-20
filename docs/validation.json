@@ -1,7 +1,7 @@
 {
   "date": "2026-10-20",
-  "python_tests_passed": 6,
-  "javascript_tests_passed": 4,
+  "python_tests_passed": 9,
+  "javascript_tests_passed": 8,
   "browser": {
     "passed": true,
     "checks": [
@@ -14,6 +14,22 @@
       "no business API calls"
     ],
     "fixture": "Recorded avatar video and synthetic model responses; not live inference."
+  },
+  "live2d_browser": {
+    "passed": true,
+    "device_sample_rate": 48000,
+    "checks": [
+      "real Cubism WebGL rendering with local assets",
+      "Live2D does not require natural avatar worker",
+      "PCM playback and mouth envelope",
+      "queued audio drains before controls unlock",
+      "avatar switching preserves messages",
+      "switch and interrupt stop old audio",
+      "shared AudioContext survives renderer changes",
+      "microphone recording cancels on switch",
+      "desktop and mobile layout"
+    ],
+    "fixture": "Real Cubism rendering, synthetic LLM and PCM audio; not live model inference."
   },
   "live_model_validation": {
     "completed": false,

@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse,Response
 from fastapi.staticfiles import StaticFiles
 from actor import Actor
 from chat import reply,speech_request
+from speech import browser_speech
 
 ROOT=Path(__file__).resolve().parent
 LLM=os.getenv('LLM_URL','http://127.0.0.1:8111').rstrip('/')
@@ -31,7 +32,7 @@ app.mount('/static',StaticFiles(directory=ROOT/'web'),name='static')
 async def index():return FileResponse(ROOT/'web/index.html')
 
 @app.get('/api/health')
-async def health():
+async def health(avatar:str='natural'):
     async def check(name,url):
         try:
             r=await app.state.client.get(url+'/health',timeout=2)
@@ -39,7 +40,8 @@ async def health():
         except httpx.HTTPError:return name,False
     services=dict(await asyncio.gather(*(check(n,u) for n,u in
         [('chat',LLM),('voice',TTS),('hearing',ASR),('avatar',CONTINUOUS)])))
-    return dict(services=services,ready=all(services.values()))
+    required=['chat','voice','hearing']+(['avatar'] if avatar!='live2d' else [])
+    return dict(services=services,ready=all(services[n] for n in required),avatar=avatar)
 
 @app.get('/api/natural/portraits')
 async def portraits():return dict(portraits=[dict(id=PORTRAIT)])
@@ -70,17 +72,26 @@ async def websocket(ws:WebSocket):
     if origin.scheme not in ('http','https') or origin.netloc!=ws.headers.get('host'):
         await ws.close(code=1008);return
     await ws.accept()
-    history=[];task=None;active=None;send_lock=asyncio.Lock()
+    history=[];task=None;setup=None;active=None;avatar='natural';send_lock=asyncio.Lock()
     async def send(kind,**data):
         async with send_lock:await ws.send_json(dict(type=kind,**data))
     actor=Actor(CONTINUOUS,PORTRAIT,send)
+    async def cancel_setup():
+        nonlocal setup
+        if setup and not setup.done():
+            setup.cancel()
+            with contextlib.suppress(asyncio.CancelledError):await setup
+        setup=None
+    async def prepare_actor():
+        try:await actor.ensure()
+        except Exception:await send('actor_error',message='人物服务尚未就绪，可重试或切换 Live2D。')
     async def cancel():
         nonlocal task,active
         if task and not task.done():
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):await task
         await actor.cancel(active);task=None;active=None
-    async def run(turn,text=None,audio=None):
+    async def run(turn,text=None,audio=None,renderer='natural'):
         try:
             if audio:
                 await send('status',turn_id=turn,label='正在听清你说的话…')
@@ -93,7 +104,10 @@ async def websocket(ws:WebSocket):
             async def emit(text):await send('text',turn_id=turn,text=text)
             utterance=await reply(app.state.client,LLM,os.getenv('LLM_MODEL','warm-sprout'),history,text,emit)
             await send('status',turn_id=turn,label='准备开口…')
-            await actor.speak(app.state.client,TTS,turn,utterance,speech_request(utterance))
+            if renderer=='live2d':
+                await browser_speech(app.state.client,TTS,turn,utterance,speech_request(utterance),send)
+            else:
+                await actor.speak(app.state.client,TTS,turn,utterance,speech_request(utterance))
             history.extend([dict(role='user',content=text),dict(role='assistant',content=utterance)])
             del history[:-16]
             # Generation completion does not end playback; the client waits for cue_end.
@@ -113,9 +127,13 @@ async def websocket(ws:WebSocket):
                 if not isinstance(data,dict):raise ValueError()
                 kind=data.get('type')
                 if kind=='ping':await send('pong');continue
-                if kind=='actor_start':
-                    try:await actor.ensure()
-                    except Exception:await send('actor_error',message='人物服务尚未就绪，请检查模型连接后重试。')
+                if kind in ('actor_start','avatar_select'):
+                    selected=data.get('avatar','natural')
+                    if selected not in ('natural','live2d'):raise ValueError()
+                    await cancel_setup();await cancel();await actor.close()
+                    avatar=selected
+                    await send('avatar_selected',avatar=avatar)
+                    if avatar=='natural':setup=asyncio.create_task(prepare_actor())
                 elif kind in ('cancel','reset'):
                     previous=active;await cancel()
                     if kind=='reset':history.clear()
@@ -127,10 +145,10 @@ async def websocket(ws:WebSocket):
                     if kind=='text' and (not isinstance(text,str) or not text.strip() or len(text)>1500):raise ValueError()
                     audio=audio_payload(data.get('audio')) if kind=='audio' else None
                     await cancel();active=turn
-                    task=asyncio.create_task(run(turn,text.strip() if kind=='text' else None,audio))
+                    task=asyncio.create_task(run(turn,text.strip() if kind=='text' else None,audio,avatar))
                 else:await send('error',message='不支持的消息类型。')
             except (ValueError,TypeError,KeyError,wave.Error):
                 await send('error',message='输入格式不正确，请重试。')
     except WebSocketDisconnect:pass
     finally:
-        await cancel();await actor.close()
+        await cancel_setup();await cancel();await actor.close()

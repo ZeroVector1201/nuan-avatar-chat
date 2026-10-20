@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js",
+    "path": "web/vendor/live2d/pixi-6.5.10.min.js",
+    "bytes": 460333,
+    "sha256": "403f2f2ee8145fa17f60c5c89403056efe2680e5096ec2762036486914ed19c5"
+  },
+  {
+    "url": "https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/LICENSE",
+    "path": "web/vendor/live2d/PIXI-LICENSE.txt",
+    "bytes": 1092,
+    "sha256": "536a16e090f0b6c1454a7c0b47ee8414a39a2f1724a154f10ca1edc750a2dcfd"
+  },
+  {
+    "url": "https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js",
+    "path": "web/vendor/live2d/pixi-live2d-display-0.4.0.min.js",
+    "bytes": 119922,
+    "sha256": "af1267e6d52759b245766c578d905bfa025b532d5c3cc727c370957c4409e21b"
+  },
+  {
+    "url": "https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/LICENSE",
+    "path": "web/vendor/live2d/DISPLAY-LICENSE.txt",
+    "bytes": 1061,
+    "sha256": "8ccace668a041e78ed525d091b0b5daf8b623ff447f912616de535415e4f302f"
+  },
+  {
+    "url": "https://cubism.live2d.com/sdk-web/core/05/live2dcubismcore.min.js",
+    "path": "web/vendor/live2d/live2dcubismcore-5.2.min.js",
+    "bytes": 207155,
+    "sha256": "25ae938cb4fe282ce189b357bcc97e603d1e1f7ec78bf04150d401c23cdc792f"
+  },
+  {
+    "url": "https://www.live2d.com/eula/live2d-proprietary-software-license-agreement_en.html",
+    "path": "web/vendor/live2d/PROPRIETARY-LICENSE.html",
+    "bytes": 85820,
+    "sha256": "e7b4ffc6c636de2cfdd6d2eed6a4e43fa7034e7f15a0c3a15f1603dbb3b4c2b6"
+  },
+  {
+    "url": "https://www.live2d.com/eula/live2d-open-software-license-agreement_en.html",
+    "path": "web/vendor/live2d/OPEN-SOFTWARE-LICENSE.html",
+    "bytes": 73603,
+    "sha256": "a8274bf5f461335738791e9f392eb3f3684eaa22cbb4dfe1f3f887c3586a8d82"
+  },
+  {
+    "url": "https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html",
+    "path": "web/vendor/live2d/FREE-MATERIAL-LICENSE.html",
+    "bytes": 54499,
+    "sha256": "e7daa8a2a20b491fa9e530455a83faf8f4fe5876d7b85cf9d9ad1bcdddcbaf8f"
+  },
+  {
+    "url": "https://cubism.live2d.com/sample-data/bin/haru_greeter/haru_greeter_ja.zip",
+    "path": "test-results/live2d/haru_greeter_ja.zip",
+    "bytes": 40966036,
+    "sha256": "3db5c9180fc8446f7d92eee13ea33f584e5d1308e101d7afa4fe3b037a0ed94e"
+  }
+]

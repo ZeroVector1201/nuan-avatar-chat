@@ -1,7 +1,11 @@
 import {NaturalCompanion,ContinuousActorSpeech} from './natural-companion.js';
 import {Microphone} from './microphone.js';
+import {Live2DCompanion} from './live2d-avatar.js';
+import {PCMSpeech} from './pcm-speech.js';
 const $=id=>document.getElementById(id);
-const state={socket:null,head:null,ctx:null,turn:null,busy:false,connected:false,actor:false,epoch:0,recordPending:false};
+const initialMode=new URLSearchParams(location.search).get('avatar')==='live2d'?'live2d':'natural';
+const state={socket:null,head:null,ctx:null,turn:null,busy:false,connected:false,actor:false,epoch:0,recordPending:false,
+  mode:initialMode,switching:false,headReady:false,speech:null};
 // Useful for embedding and for reproducible UI tests; no personal data is persisted.
 window.nuan=state;
 let heartbeat,chain=Promise.resolve(),replyBubble=null,transcriptBubble=null;
@@ -16,12 +20,13 @@ function scroll(){$('messages').scrollTop=$('messages').scrollHeight;}
 function error(text=''){$('error').textContent=text;$('error').hidden=!text;}
 function status(text){$('state-label').textContent=text;}
 function controls(){
-  const available=state.connected&&state.actor;
+  const available=state.connected&&state.actor&&!state.switching;
   $('send').disabled=!available||state.busy||state.recordPending||recorder.recording;
   $('mic').disabled=!available||state.busy||state.recordPending;
   $('mic').textContent=recorder.recording?'■ 发送这段语音':'♩ 开始说话';
   $('interrupt').disabled=!state.busy;
   $('mic-device').disabled=recorder.recording||state.recordPending;
+  $('avatar-mode').disabled=state.switching;
   $('reconnect').hidden=state.connected&&state.actor;
   $('connection').textContent=state.connected&&state.actor?'● 已连接':state.connected?'人物正在连接…':'连接已断开';
 }
@@ -30,7 +35,7 @@ function send(data){
   state.socket.send(JSON.stringify(data));
 }
 function stopSpeech(){
-  state.head?.stopSpeaking();state.turn=null;state.busy=false;$('caption').hidden=true;
+  state.speech?.stop();state.speech=null;state.head?.stopSpeaking();state.turn=null;state.busy=false;$('caption').hidden=true;
   if(replyBubble?.article.classList.contains('pending')){
     replyBubble.p.textContent='回复已暂停';replyBubble.article.classList.remove('pending');replyBubble.article.classList.add('cancelled');
   }
@@ -47,11 +52,19 @@ async function begin(kind,value){
 }
 async function event(d,epoch){
   if(epoch!==state.epoch)return;
-  if(d.type==='hello'){send({type:'actor_start'});return;}
+  if(d.type==='hello'){send({type:'avatar_select',avatar:state.mode});return;}
+  if(d.type==='avatar_selected'){
+    if(d.avatar===state.mode&&d.avatar==='live2d'&&state.headReady){
+      state.actor=true;$('avatar-loading').hidden=true;controls();
+    }
+    return;
+  }
   if(d.type==='actor_error'){
+    if(state.mode!=='natural'||state.switching)return;
     state.actor=false;stopSpeech();state.head?.disconnectActor();$('avatar-loading').hidden=true;error(d.message);controls();return;
   }
   if(d.type==='actor_stream_start'||d.type==='actor_stream_chunk'||d.type==='actor_cue_start'||d.type==='actor_cue_end'){
+    if(state.mode!=='natural'||state.switching||!state.headReady)return;
     await state.head.actorEvent(d);
     if(d.type==='actor_stream_start'){state.actor=true;controls();}
     return;
@@ -63,9 +76,11 @@ async function event(d,epoch){
     transcriptBubble.article.classList.remove('pending');scroll();
   }
   if(d.type==='text')state.reply=d.text; // Kept off-screen until the speech actually starts.
-  if(d.type==='actor_speech_start'){
+  if(d.type==='actor_speech_start'||d.type==='audio_start'){
+    if((d.type==='audio_start')!==(state.mode==='live2d'))return;
     const turn=state.turn;
-    const speech=new ContinuousActorSpeech(state.head,d,{
+    const Speech=state.mode==='live2d'?PCMSpeech:ContinuousActorSpeech;
+    const speech=state.speech=new Speech(state.head,d,{
       start:()=>{if(state.turn===turn)status('暖暖正在说…');},
       caption:text=>{
         if(state.turn!==turn)return;
@@ -73,10 +88,13 @@ async function event(d,epoch){
         $('caption').textContent=text;$('caption').hidden=false;scroll();
       },
       audible:()=>{},
-      end:()=>{if(state.turn!==turn)return;state.busy=false;state.turn=null;$('caption').hidden=true;status('慢慢说，我在听。');controls();}
+      end:()=>{if(state.turn!==turn)return;state.busy=false;state.turn=null;state.speech=null;$('caption').hidden=true;status('慢慢说，我在听。');controls();},
+      error:e=>{if(state.turn===turn){stopSpeech();error(e.message);}}
     });
     await speech.init();
   }
+  if(d.type==='audio_chunk')state.speech?.push(d);
+  if(d.type==='audio_end')state.speech?.end(d);
   // done means server synthesis has ended, not that the child heard the last word.
   // Cancel/reset is applied immediately by the originating UI. A late server
   // acknowledgement must never stop the new turn started in the meantime.
@@ -88,7 +106,7 @@ async function event(d,epoch){
 function disconnect(){
   state.epoch++;clearInterval(heartbeat);recorder.cancel();state.recordPending=false;
   state.socket?.close();state.socket=null;state.connected=false;state.actor=false;
-  stopSpeech();state.head?.disconnectActor();$('record-status').textContent='';controls();
+  stopSpeech();state.head?.disconnectActor?.();$('record-status').textContent='';controls();
 }
 function connect(){
   disconnect();const epoch=state.epoch;chain=Promise.resolve();error();
@@ -140,17 +158,46 @@ $('reset').onclick=()=>{
   if(state.connected)send({type:'reset'});
   stopSpeech();$('messages').replaceChildren();welcome();error();status('新的一次聊天，从这里开始。');
 };
-$('reconnect').onclick=()=>{connect();$('messages').replaceChildren();welcome();};
+$('reconnect').onclick=async()=>{
+  if(!state.headReady){await switchAvatar(state.mode);return;}
+  connect();$('messages').replaceChildren();welcome();
+};
 function welcome(){message('assistant','你好呀，我是暖暖。很高兴见到你，今天想和我聊些什么？');}
 window.addEventListener('pagehide',()=>{disconnect();state.head?.dispose();state.ctx?.close();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){recorder.cancel();state.recordPending=false;$('record-status').textContent='';controls();}});
-async function main(){
-  welcome();state.ctx=new AudioContext();$('avatar').replaceChildren();
-  state.head=new NaturalCompanion($('avatar'),state.ctx);
+async function loadAvatar(mode){
+  state.headReady=false;state.head?.dispose();$('avatar').replaceChildren();
+  document.querySelector('.stage').dataset.avatar=mode;
+  $('live2d-credit').hidden=mode!=='live2d';
+  state.head=mode==='live2d'?new Live2DCompanion($('avatar'),state.ctx):new NaturalCompanion($('avatar'),state.ctx);
   state.head.onActorError=message=>{state.actor=false;stopSpeech();error(message);controls();};
-  await state.head.load();state.head.start();connect();devices().catch(()=>{});
+  await state.head.load();state.head.start();state.headReady=true;
+}
+async function switchAvatar(mode){
+  if(state.switching)return;
+  state.switching=true;state.actor=false;state.mode=mode;
+  recorder.cancel();state.recordPending=false;$('record-status').textContent='';
+  stopSpeech();error();$('avatar-loading').hidden=false;controls();
+  try{
+    if(state.connected)send({type:'cancel'});
+    await loadAvatar(mode);
+    const url=new URL(location.href);url.searchParams.set('avatar',mode);history.replaceState(null,'',url);
+    if(state.connected)send({type:'avatar_select',avatar:mode});
+    else connect();
+    status('慢慢说，我在听。');
+  }catch(e){
+    state.head?.dispose();state.head=null;state.headReady=false;$('avatar-loading').hidden=true;
+    error('形象加载失败：'+e.message);
+  }finally{state.switching=false;controls();}
+}
+$('avatar-mode').value=state.mode;
+$('avatar-mode').onchange=()=>switchAvatar($('avatar-mode').value);
+async function main(){
+  welcome();state.ctx=new AudioContext();
+  await switchAvatar(state.mode);devices().catch(()=>{});
   const timer=setInterval(()=>{
-    if(state.head?.actorMetrics?.starts){$('avatar-loading').hidden=true;clearInterval(timer);}
+    if(state.mode==='natural'&&state.head?.actorMetrics?.starts)$('avatar-loading').hidden=true;
   },200);
+  window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
 }
 main().catch(e=>{$('avatar-loading').hidden=true;error(e.message);controls();});
