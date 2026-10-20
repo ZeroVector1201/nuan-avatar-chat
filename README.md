@@ -101,8 +101,8 @@ npm test
 
 ## 素材
 
-页面和播放器从现有 Nuan 项目独立整理，人物照片沿用该项目的演示素材。仓库为私有分享，不对照片的公开再分发作额外授权。
+页面和播放器从现有 Nuan 项目独立整理，人物照片沿用该项目的演示素材。仓库公开不代表对照片的再次分发作额外授权。
 
 Live2D 角色为 [Haru（官方接待员示例）](https://www.live2d.com/en/learn/sample/haru-receptionist/)。本内容使用 Live2D Inc. 拥有版权的示例素材，遵循其使用条件。本项目内容由作者独立制作。本仓库保留模型、贴图及运行数据，不包含示例自带的音频、PSD 或编辑器项目。
 
-角色适用 [示例素材使用条件](https://www.live2d.com/en/learn/sample/model-terms/) 与 Free Material License；Cubism Core / Framework 适用各自许可，PixiJS 与 pixi-live2d-display 自有代码的 MIT 许可一并保留。完整说明在 `web/live2d-notice.html`，来源与校验值在 `web/vendor/live2d/sources.json`。这些素材和运行库不因本仓库为私有而改变原有使用条件。推理模型权重仍不包含在仓库内。
+角色适用 [示例素材使用条件](https://www.live2d.com/en/learn/sample/model-terms/) 与 Free Material License；Cubism Core / Framework 适用各自许可，PixiJS 与 pixi-live2d-display 自有代码的 MIT 许可一并保留。完整说明在 `web/live2d-notice.html`，来源与校验值在 `web/vendor/live2d/sources.json`。这些素材和运行库不因本仓库公开而改变原有使用条件。推理模型权重仍不包含在仓库内。
